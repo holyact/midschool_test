@@ -1,0 +1,257 @@
+import os
+
+mobile_html_content = """
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>중2 영어 퀴즈 - Mobile</title>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --text-color: #333;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 10px;
+            color: var(--text-color);
+            -webkit-tap-highlight-color: transparent;
+        }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding-bottom: 50px;
+        }
+        header {
+            text-align: center;
+            padding: 20px 0;
+            background: var(--card-bg);
+            border-radius: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        h1 { font-size: 1.4rem; margin: 0; color: var(--primary-color); }
+        
+        .progress-container {
+            position: sticky;
+            top: 0;
+            background: var(--bg-color);
+            padding: 10px 0;
+            z-index: 100;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        #progress-fill {
+            width: 0%;
+            height: 100%;
+            background: var(--primary-color);
+            transition: width 0.3s;
+        }
+
+        .question-card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .q-num {
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 8px;
+            display: block;
+        }
+        .q-text {
+            font-size: 1.1rem;
+            line-height: 1.5;
+            margin-bottom: 15px;
+        }
+        .options { display: flex; flex-direction: column; gap: 10px; }
+        .option {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border: 2px solid #eee;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .option:active { background-color: #f0f7ff; }
+        input[type="radio"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        
+        .submit-btn {
+            width: 100%;
+            padding: 18px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-top: 20px;
+            box-shadow: 0 4px 12px rgba(74,144,226,0.3);
+        }
+
+        #result-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            width: 100%;
+            max-width: 400px;
+        }
+        .score-circle {
+            width: 100px; height: 100px;
+            border-radius: 50%;
+            border: 5px solid var(--primary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .correct { border-color: #2ecc71 !important; background: #eafaf1; }
+        .wrong { border-color: #e74c3c !important; background: #fdf2f2; }
+        .explanation {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #ddd;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>📝 영어 종합 퀴즈 (중2)</h1>
+    </header>
+
+    <div class="progress-container">
+        <div class="progress-bar"><div id="progress-fill"></div></div>
+    </div>
+
+    <form id="quiz-form"></form>
+    <button type="button" class="submit-btn" onclick="checkAnswers()">제출하기</button>
+</div>
+
+<div id="result-modal">
+    <div class="modal-content">
+        <h2>학습 결과</h2>
+        <div class="score-circle" id="modal-score">0 / 20</div>
+        <p id="modal-msg"></p>
+        <button class="submit-btn" onclick="location.reload()">다시 풀기</button>
+    </div>
+</div>
+
+<script>
+const questions = [
+    { q: "I always bring my ( ) in my bag to listen to music.", options: ["headphones", "soccer shoes", "diary", "pouch"], ans: 0, exp: "음악 감상 도구는 headphones입니다." },
+    { q: "My best friend, Lucy, and I ( ) playlists.", options: ["share", "lose", "break", "forget"], ans: 0, exp: "친구와 나누는 것은 share입니다." },
+    { q: "She is ( ) famous singer in Korea.", options: ["the most", "the more", "the very", "the bestest"], ans: 0, exp: "최상급 표현은 the most famous입니다." },
+    { q: "다음 중 'relax'의 의미와 가장 가까운 것은?", options: ["rest and feel calm", "work hard", "run fast", "worry a lot"], ans: 0, exp: "relax는 '편히 쉬다'는 뜻입니다." },
+    { q: "I always listen to her songs ( ) lunch time.", options: ["during", "for", "at", "with"], ans: 0, exp: "특정 기간 동안에는 during을 씁니다." },
+    { q: "필자가 축구화를 가방에 항상 넣고 다니는 이유는?", options: ["They bring good luck and wins.", "They are too expensive.", "They are new and clean.", "His friend Lucy gave them to him."], ans: 0, exp: "행운과 승리를 가져다준다고 믿기 때문입니다." },
+    { q: "I write about my strong and ( ) points in my diary.", options: ["weak", "long", "good", "heavy"], ans: 0, exp: "강점(strong)의 반대는 약점(weak)입니다." },
+    { q: "필자의 장래 희망은 무엇인가요?", options: ["A world-famous soccer player", "A famous singer", "A teacher", "A chef"], ans: 0, exp: "꿈은 세계적인 축구 선수입니다." },
+    { q: "간식 파우치에 들어있는 것이 아닌 것은?", options: ["Fruit", "Candies", "Jellies", "Snack bars"], ans: 0, exp: "과일은 언급되지 않았습니다." },
+    { q: "They look like ramyeon but ( ) sweet.", options: ["taste", "smell", "sound", "feel"], ans: 0, exp: "맛이 달콤하다는 taste가 적절합니다." },
+    { q: "필자가 친구들을 위해 여분의 간식을 챙기는 이유는?", options: ["Friends are also interested in them.", "The snacks expire soon.", "He wants to sell them.", "He doesn't like them."], ans: 0, exp: "친구들이 관심을 보이기 때문입니다." },
+    { q: "필자가 이가 썩을까 봐 걱정하는 독자에게 한 말은?", options: ["I always have a toothbrush.", "I only eat healthy snacks.", "I go to the dentist.", "I share snacks."], ans: 0, exp: "칫솔을 항상 챙긴다고 했습니다." },
+    { q: "학급에서 가장 인기 있는 역할(job)은?", options: ["Feeding the class pet", "Cleaning", "Writing diary", "Watering plants"], ans: 0, exp: "이구아나 먹이 주기가 가장 인기입니다." },
+    { q: "I see a woman ( ) is walking with her pet dog.", options: ["who", "which", "whom", "whose"], ans: 0, exp: "사람 선행사 주격은 who입니다." },
+    { q: "집에 가던 필자가 다시 학교로 달려간 이유는?", options: ["To care for Larry", "Forgot soccer bag", "To play soccer", "Lost snack pouch"], ans: 0, exp: "래리를 돌봐야 함을 깨달았기 때문입니다." },
+    { q: "학교에 돌아온 필자가 발견한 상황은?", options: ["Cage open, Larry gone", "Larry sleeping", "Friends playing", "Teacher feeding"], ans: 0, exp: "래리가 사라진 상황이었습니다." },
+    { q: "당황스럽고 걱정되는 마음을 비유한 표현은?", options: ["worry machine", "lucky shoes", "snack pouch", "soccer diary"], ans: 0, exp: "worry machine으로 비유했습니다." },
+    { q: "I call and ask them to come ( ).", options: ["right away", "by the way", "on the way", "far away"], ans: 0, exp: "당장 와달라는 right away입니다." },
+    { q: "문맥상 'breathe quickly'하는 이유는?", options: ["He is worried and nervous.", "Finished soccer game.", "Classroom is hot.", "Laughing hard."], ans: 0, exp: "걱정되고 긴장한 상태를 묘사합니다." },
+    { q: "필자가 래리를 찾기 위해 마지막으로 선택한 방법은?", options: ["Asking friends for help", "Giving up", "Reporting to teacher", "Buying new one"], ans: 0, exp: "친구들에게 도움을 요청했습니다." }
+];
+
+const form = document.getElementById('quiz-form');
+questions.forEach((q, i) => {
+    const card = document.createElement('div');
+    card.className = 'question-card';
+    card.innerHTML = `
+        <span class="q-num">Question ${i+1}</span>
+        <div class="q-text">${q.q}</div>
+        <div class="options">
+            ${q.options.map((opt, oi) => `
+                <label class="option" id="label-${i}-${oi}">
+                    <input type="radio" name="q${i}" value="${oi}" onchange="updateProgress()"> ${opt}
+                </label>
+            `).join('')}
+        </div>
+        <div class="explanation" id="exp-${i}"><b>정답: ${q.options[q.ans]}</b><br>${q.exp}</div>
+    `;
+    form.appendChild(card);
+});
+
+function updateProgress() {
+    const answered = document.querySelectorAll('input[type="radio"]:checked').length;
+    const percent = (answered / questions.length) * 100;
+    document.getElementById('progress-fill').style.width = percent + '%';
+}
+
+function checkAnswers() {
+    let score = 0;
+    questions.forEach((q, i) => {
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        const exp = document.getElementById(`exp-${i}`);
+        exp.style.display = 'block';
+        
+        if(selected) {
+            const val = parseInt(selected.value);
+            if(val === q.ans) {
+                score++;
+                document.getElementById(`label-${i}-${val}`).classList.add('correct');
+            } else {
+                document.getElementById(`label-${i}-${val}`).classList.add('wrong');
+                document.getElementById(`label-${i}-${q.ans}`).classList.add('correct');
+            }
+        } else {
+            document.getElementById(`label-${i}-${q.ans}`).classList.add('correct');
+        }
+    });
+
+    document.getElementById('modal-score').innerText = score + ' / ' + questions.length;
+    document.getElementById('modal-msg').innerText = score >= 15 ? "훌륭합니다! 모바일 학습 완료!" : "조금 더 복습해볼까요?";
+    document.getElementById('result-modal').style.display = 'flex';
+}
+</script>
+</body>
+</html>
+"""
+
+file_path = "/mnt/data/index.html"
+with open(file_path, "w", encoding="utf-8") as f:
+    f.write(mobile_html_content)
