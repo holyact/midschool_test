@@ -1,257 +1,382 @@
-import os
-
-mobile_html_content = """
 <!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>시험대비 중2 영어 퀴즈 - Mobile</title>
+    <title>중2 영어 통합 퀴즈</title>
     <style>
         :root {
-            --primary-color: #4a90e2;
-            --bg-color: #f0f2f5;
-            --card-bg: #ffffff;
-            --text-color: #333;
+            --primary: #2563eb;
+            --secondary: #7c3aed;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --success: #22c55e;
+            --danger: #ef4444;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg-color);
+            background-color: var(--bg);
+            color: var(--text);
             margin: 0;
-            padding: 10px;
-            color: var(--text-color);
-            -webkit-tap-highlight-color: transparent;
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+            -webkit-user-select: none;
+            user-select: none;
         }
-        .container {
-            max-width: 500px;
-            margin: 0 auto;
-            padding-bottom: 50px;
-        }
-        header {
-            text-align: center;
-            padding: 20px 0;
-            background: var(--card-bg);
-            border-radius: 15px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        }
-        h1 { font-size: 1.4rem; margin: 0; color: var(--primary-color); }
-        
-        .progress-container {
-            position: sticky;
-            top: 0;
-            background: var(--bg-color);
-            padding: 10px 0;
-            z-index: 100;
-        }
-        .progress-bar {
+        .quiz-container {
             width: 100%;
-            height: 8px;
-            background: #ddd;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        #progress-fill {
-            width: 0%;
-            height: 100%;
-            background: var(--primary-color);
-            transition: width 0.3s;
+            max-width: 480px;
+            position: relative;
+            padding-top: 20px;
         }
 
-        .question-card {
-            background: var(--card-bg);
-            border-radius: 15px;
+        /* 메인 메뉴 스타일 */
+        #main-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-top: 50px;
+        }
+        .menu-btn {
+            padding: 30px 20px;
+            border-radius: 20px;
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .menu-btn:active { transform: scale(0.95); }
+        .btn-vocab { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+        .btn-sentence { background: linear-gradient(135deg, #a855f7, #7c3aed); }
+        .menu-desc { font-size: 0.9rem; font-weight: normal; margin-top: 10px; opacity: 0.9; }
+
+        /* 실시간 스코어보드 */
+        #live-scoreboard {
+            display: none;
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 8px 12px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border: 1px solid #e2e8f0;
+            z-index: 1000;
+            gap: 10px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            backdrop-filter: blur(5px);
+        }
+        .live-stat.correct { color: var(--success); }
+        .live-stat.wrong { color: var(--danger); }
+
+        header { text-align: center; margin-bottom: 25px; }
+        h1 { font-size: 1.4rem; color: var(--primary); margin: 0; }
+        
+        .card {
+            background: var(--card);
+            border-radius: 16px;
             padding: 20px;
             margin-bottom: 15px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
         }
-        .q-num {
-            font-weight: bold;
-            color: var(--primary-color);
-            margin-bottom: 8px;
-            display: block;
-        }
-        .q-text {
-            font-size: 1.1rem;
-            line-height: 1.5;
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 15px;
         }
+        .question-num { font-size: 0.75rem; color: #94a3b8; }
+        .btn-exit {
+            background: #f1f5f9;
+            border: none;
+            color: #64748b;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .question-text { font-size: 1.15rem; font-weight: 700; margin-bottom: 20px; line-height: 1.5; white-space: pre-line; }
+        
         .options { display: flex; flex-direction: column; gap: 10px; }
         .option {
-            display: flex;
-            align-items: center;
-            padding: 15px;
-            border: 2px solid #eee;
-            border-radius: 10px;
+            padding: 14px;
+            border: 2px solid #f1f5f9;
+            border-radius: 12px;
             cursor: pointer;
-            transition: 0.2s;
-        }
-        .option:active { background-color: #f0f7ff; }
-        input[type="radio"] {
-            width: 20px;
-            height: 20px;
-            margin-right: 12px;
-            flex-shrink: 0;
-        }
-        
-        .submit-btn {
+            transition: all 0.2s;
+            background: #fff;
+            text-align: left;
+            font-size: 0.95rem;
+            font-weight: 500;
             width: 100%;
-            padding: 18px;
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 15px;
-            font-size: 1.2rem;
-            font-weight: bold;
-            margin-top: 20px;
-            box-shadow: 0 4px 12px rgba(74,144,226,0.3);
         }
-
-        #result-modal {
+        .option.correct { background-color: #dcfce7; border-color: #22c55e; color: #166534; }
+        .option.wrong { background-color: #fee2e2; border-color: #ef4444; color: #991b1b; }
+        
+        /* 확인창 모달 디자인 */
+        #custom-confirm {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8);
-            z-index: 1000;
+            background: rgba(0,0,0,0.6);
+            z-index: 2000;
             justify-content: center;
             align-items: center;
             padding: 20px;
             box-sizing: border-box;
         }
-        .modal-content {
+        .confirm-card {
             background: white;
-            padding: 30px;
+            padding: 25px;
             border-radius: 20px;
             text-align: center;
             width: 100%;
-            max-width: 400px;
+            max-width: 320px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
         }
-        .score-circle {
-            width: 100px; height: 100px;
-            border-radius: 50%;
-            border: 5px solid var(--primary-color);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px;
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
-        .correct { border-color: #2ecc71 !important; background: #eafaf1; }
-        .wrong { border-color: #e74c3c !important; background: #fdf2f2; }
-        .explanation {
-            font-size: 0.9rem;
-            color: #666;
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px dashed #ddd;
+        .confirm-msg { font-weight: bold; margin-bottom: 20px; line-height: 1.4; }
+        .confirm-btns { display: flex; gap: 10px; }
+        .confirm-btn { flex: 1; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; }
+        .btn-yes { background: var(--danger); color: white; }
+        .btn-no { background: #e2e8f0; color: #475569; }
+
+        .result-screen {
             display: none;
+            text-align: center;
+            background: var(--card);
+            padding: 30px 20px;
+            border-radius: 20px;
         }
+        .score-value { font-size: 2.25rem; font-weight: 800; }
+        .score-value.correct { color: var(--success); }
+        .score-value.wrong { color: var(--danger); }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            margin-top: 15px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .btn-home { background: #64748b; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <header>
-        <h1>📝 영어 종합 퀴즈 (중2)</h1>
-    </header>
-
-    <div class="progress-container">
-        <div class="progress-bar"><div id="progress-fill"></div></div>
-    </div>
-
-    <form id="quiz-form"></form>
-    <button type="button" class="submit-btn" onclick="checkAnswers()">제출하기</button>
+<!-- 실시간 점수판 -->
+<div id="live-scoreboard">
+    <div class="live-stat correct">O <span id="live-correct">0</span></div>
+    <div class="live-stat wrong">X <span id="live-wrong">0</span></div>
 </div>
 
-<div id="result-modal">
-    <div class="modal-content">
-        <h2>학습 결과</h2>
-        <div class="score-circle" id="modal-score">0 / 20</div>
-        <p id="modal-msg"></p>
-        <button class="submit-btn" onclick="location.reload()">다시 풀기</button>
+<!-- 사용자 정의 확인창 -->
+<div id="custom-confirm">
+    <div class="confirm-card">
+        <div class="confirm-msg">진행 중인 퀴즈를 중단하고<br>처음 화면으로 돌아갈까요?</div>
+        <div class="confirm-btns">
+            <button class="confirm-btn btn-no" onclick="closeConfirm()">계속 풀기</button>
+            <button class="confirm-btn btn-yes" onclick="goHome()">메인으로</button>
+        </div>
+    </div>
+</div>
+
+<div class="quiz-container">
+    <header id="quiz-header">
+        <h1>📖 English Study Quiz</h1>
+        <p style="font-size:0.9rem; color:#64748b;">원하는 학습 모드를 선택하세요</p>
+    </header>
+
+    <!-- 메인 메뉴 -->
+    <div id="main-menu">
+        <button class="menu-btn btn-vocab" onclick="startQuiz('vocab')">
+            1. 단어 테스트 (Vocab)
+            <div class="menu-desc">주요 단어 20문제 (영/한 믹스)</div>
+        </button>
+        <button class="menu-btn btn-sentence" onclick="startQuiz('sentence')">
+            2. 문장 & 어법 퀴즈
+            <div class="menu-desc">본문 내용 및 문법 20문제</div>
+        </button>
+    </div>
+
+    <!-- 퀴즈 화면 -->
+    <div id="quiz-box" style="display:none;"></div>
+
+    <!-- 결과 화면 -->
+    <div id="result-screen" class="result-screen">
+        <h2 style="margin-top:0">학습 완료!</h2>
+        <div style="display:flex; justify-content:space-around; margin:20px 0;">
+            <div><div class="score-value correct" id="res-correct">0</div><div style="font-size:0.8rem">정답</div></div>
+            <div><div class="score-value wrong" id="res-wrong">0</div><div style="font-size:0.8rem">오답</div></div>
+        </div>
+        <div id="final-score-percent" style="font-weight:800; color:var(--primary); font-size:1.2rem;">0점</div>
+        <p id="result-msg" style="margin-top:20px; font-size:0.9rem; line-height:1.4;"></p>
+        <button class="btn" onclick="retryQuiz()">다시 풀기</button>
+        <button class="btn btn-home" onclick="goHome()">메인 메뉴로</button>
     </div>
 </div>
 
 <script>
-const questions = [
-    { q: "I always bring my ( ) in my bag to listen to music.", options: ["headphones", "soccer shoes", "diary", "pouch"], ans: 0, exp: "음악 감상 도구는 headphones입니다." },
-    { q: "My best friend, Lucy, and I ( ) playlists.", options: ["share", "lose", "break", "forget"], ans: 0, exp: "친구와 나누는 것은 share입니다." },
-    { q: "She is ( ) famous singer in Korea.", options: ["the most", "the more", "the very", "the bestest"], ans: 0, exp: "최상급 표현은 the most famous입니다." },
-    { q: "다음 중 'relax'의 의미와 가장 가까운 것은?", options: ["rest and feel calm", "work hard", "run fast", "worry a lot"], ans: 0, exp: "relax는 '편히 쉬다'는 뜻입니다." },
-    { q: "I always listen to her songs ( ) lunch time.", options: ["during", "for", "at", "with"], ans: 0, exp: "특정 기간 동안에는 during을 씁니다." },
-    { q: "필자가 축구화를 가방에 항상 넣고 다니는 이유는?", options: ["They bring good luck and wins.", "They are too expensive.", "They are new and clean.", "His friend Lucy gave them to him."], ans: 0, exp: "행운과 승리를 가져다준다고 믿기 때문입니다." },
-    { q: "I write about my strong and ( ) points in my diary.", options: ["weak", "long", "good", "heavy"], ans: 0, exp: "강점(strong)의 반대는 약점(weak)입니다." },
-    { q: "필자의 장래 희망은 무엇인가요?", options: ["A world-famous soccer player", "A famous singer", "A teacher", "A chef"], ans: 0, exp: "꿈은 세계적인 축구 선수입니다." },
-    { q: "간식 파우치에 들어있는 것이 아닌 것은?", options: ["Fruit", "Candies", "Jellies", "Snack bars"], ans: 0, exp: "과일은 언급되지 않았습니다." },
-    { q: "They look like ramyeon but ( ) sweet.", options: ["taste", "smell", "sound", "feel"], ans: 0, exp: "맛이 달콤하다는 taste가 적절합니다." },
-    { q: "필자가 친구들을 위해 여분의 간식을 챙기는 이유는?", options: ["Friends are also interested in them.", "The snacks expire soon.", "He wants to sell them.", "He doesn't like them."], ans: 0, exp: "친구들이 관심을 보이기 때문입니다." },
-    { q: "필자가 이가 썩을까 봐 걱정하는 독자에게 한 말은?", options: ["I always have a toothbrush.", "I only eat healthy snacks.", "I go to the dentist.", "I share snacks."], ans: 0, exp: "칫솔을 항상 챙긴다고 했습니다." },
-    { q: "학급에서 가장 인기 있는 역할(job)은?", options: ["Feeding the class pet", "Cleaning", "Writing diary", "Watering plants"], ans: 0, exp: "이구아나 먹이 주기가 가장 인기입니다." },
-    { q: "I see a woman ( ) is walking with her pet dog.", options: ["who", "which", "whom", "whose"], ans: 0, exp: "사람 선행사 주격은 who입니다." },
-    { q: "집에 가던 필자가 다시 학교로 달려간 이유는?", options: ["To care for Larry", "Forgot soccer bag", "To play soccer", "Lost snack pouch"], ans: 0, exp: "래리를 돌봐야 함을 깨달았기 때문입니다." },
-    { q: "학교에 돌아온 필자가 발견한 상황은?", options: ["Cage open, Larry gone", "Larry sleeping", "Friends playing", "Teacher feeding"], ans: 0, exp: "래리가 사라진 상황이었습니다." },
-    { q: "당황스럽고 걱정되는 마음을 비유한 표현은?", options: ["worry machine", "lucky shoes", "snack pouch", "soccer diary"], ans: 0, exp: "worry machine으로 비유했습니다." },
-    { q: "I call and ask them to come ( ).", options: ["right away", "by the way", "on the way", "far away"], ans: 0, exp: "당장 와달라는 right away입니다." },
-    { q: "문맥상 'breathe quickly'하는 이유는?", options: ["He is worried and nervous.", "Finished soccer game.", "Classroom is hot.", "Laughing hard."], ans: 0, exp: "걱정되고 긴장한 상태를 묘사합니다." },
-    { q: "필자가 래리를 찾기 위해 마지막으로 선택한 방법은?", options: ["Asking friends for help", "Giving up", "Reporting to teacher", "Buying new one"], ans: 0, exp: "친구들에게 도움을 요청했습니다." }
+// 데이터셋 (동일 유지)
+const vocabQuestions = [
+    { q: "share", o: ["나누다, 공유하다", "숨기다", "부수다", "잊어버리다"], a: 0 },
+    { q: "famous", o: ["부유한", "시끄러운", "유명한", "강력한"], a: 2 },
+    { q: "nature", o: ["미래", "자연", "과거", "도시"], a: 1 },
+    { q: "relax", o: ["긴장하다", "공부하다", "휴식을 취하다", "소리치다"], a: 2 },
+    { q: "lucky", o: ["행운의", "불행한", "무거운", "깨끗한"], a: 0 },
+    { q: "training", o: ["경기", "여행", "훈련", "식사"], a: 2 },
+    { q: "weak", o: ["강한", "약한", "빠른", "느린"], a: 1 },
+    { q: "pouch", o: ["가방", "책상", "작은 주머니", "일기장"], a: 2 },
+    { q: "energy", o: ["에너지, 활력", "슬픔", "공포", "지루함"], a: 0 },
+    { q: "popular", o: ["인기 있는", "외로운", "지루한", "이상한"], a: 0 },
+    { q: "돌보다, 보살피다", o: ["look for", "take care of", "give up", "run away"], a: 1 },
+    { q: "칫솔", o: ["hairbrush", "toothpaste", "toothbrush", "toothache"], a: 2 },
+    { q: "사라진, 가버린", o: ["here", "stay", "gone", "found"], a: 2 },
+    { q: "교실", o: ["bedroom", "classroom", "kitchen", "bathroom"], a: 1 },
+    { q: "당장, 즉시", o: ["far away", "right away", "long ago", "by the way"], a: 1 },
+    { q: "숨을 쉬다", o: ["break", "breathe", "bring", "bright"], a: 1 },
+    { q: "가장 최신의", o: ["oldest", "newest", "cheapest", "fastest"], a: 1 },
+    { q: "일기", o: ["dictionary", "diary", "diagram", "diamond"], a: 1 },
+    { q: "먹이를 주다", o: ["feed", "feel", "fill", "fall"], a: 0 },
+    { q: "걱정하다", o: ["work", "word", "worry", "world"], a: 2 }
 ];
 
-const form = document.getElementById('quiz-form');
-questions.forEach((q, i) => {
-    const card = document.createElement('div');
-    card.className = 'question-card';
-    card.innerHTML = `
-        <span class="q-num">Question ${i+1}</span>
-        <div class="q-text">${q.q}</div>
-        <div class="options">
-            ${q.options.map((opt, oi) => `
-                <label class="option" id="label-${i}-${oi}">
-                    <input type="radio" name="q${i}" value="${oi}" onchange="updateProgress()"> ${opt}
-                </label>
-            `).join('')}
-        </div>
-        <div class="explanation" id="exp-${i}"><b>정답: ${q.options[q.ans]}</b><br>${q.exp}</div>
-    `;
-    form.appendChild(card);
-});
+const sentenceQuestions = [
+    { q: "I always bring my ( ) in my bag to listen to music.", o: ["headphones", "shoes", "diary", "pouch"], a: 0 },
+    { q: "My best friend, Lucy, and I ( ) playlists.", o: ["share", "lose", "break", "forget"], a: 0 },
+    { q: "She is ( ) famous singer in Korea.", o: ["the most", "the more", "the very", "bestest"], a: 0 },
+    { q: "What does 'relax' mean in the passage?", o: ["rest and feel calm", "work hard", "run fast", "worry"], a: 0 },
+    { q: "I always listen to her songs ( ) lunch time.", o: ["during", "for", "at", "with"], a: 0 },
+    { q: "Why does the writer carry soccer shoes?", o: ["For good luck", "Too expensive", "To clean them", "Gift"], a: 0 },
+    { q: "I write about my strong and ( ) points.", o: ["weak", "long", "good", "heavy"], a: 0 },
+    { q: "What is the writer's dream?", o: ["Soccer player", "Singer", "Teacher", "Chef"], a: 0 },
+    { q: "Which is NOT in the snack pouch?", o: ["Fruit", "Candies", "Jellies", "Snack bars"], a: 0 },
+    { q: "They look like ramyeon but ( ) sweet.", o: ["taste", "smell", "sound", "feel"], a: 0 },
+    { q: "Why bring extra snacks?", o: ["Friends are interested", "Expired", "To sell", "Don't like"], a: 0 },
+    { q: "How does the writer care for teeth?", o: ["Has a toothbrush", "Healthy snacks", "Dentist", "Less sugar"], a: 0 },
+    { q: "The most popular job in class is...", o: ["Feeding Larry", "Cleaning", "Writing", "Watering"], a: 0 },
+    { q: "I see a woman ( ) is walking with her dog.", o: ["who", "which", "whom", "whose"], a: 0 },
+    { q: "Why did Oliver run back to class?", o: ["Forgot Larry", "Forgot bag", "To play", "Lost pouch"], a: 0 },
+    { q: "What happened at the classroom?", o: ["Larry was gone", "Larry was sleeping", "Friends came", "Teacher fed"], a: 0 },
+    { q: "My mind turns into a ( ) because of worry.", o: ["worry machine", "soccer ball", "pouch", "diary"], a: 0 },
+    { q: "I call and ask them to come ( ).", o: ["right away", "by the way", "on the way", "later"], a: 0 },
+    { q: "Oliver begins to ( ) quickly because of worry.", o: ["breathe", "run", "eat", "write"], a: 0 },
+    { q: "Who can help Oliver find Larry?", o: ["His friends", "Teacher", "Woman with dog", "Singer Gina"], a: 0 }
+];
 
-function updateProgress() {
-    const answered = document.querySelectorAll('input[type="radio"]:checked').length;
-    const percent = (answered / questions.length) * 100;
-    document.getElementById('progress-fill').style.width = percent + '%';
+let currentQuestions = [];
+let currentIdx = 0;
+let score = 0;
+let wrongScore = 0;
+let activeQuiz = '';
+
+function startQuiz(mode) {
+    activeQuiz = mode;
+    currentQuestions = mode === 'vocab' ? vocabQuestions : sentenceQuestions;
+    currentIdx = 0; score = 0; wrongScore = 0;
+    
+    document.getElementById('main-menu').style.display = 'none';
+    document.getElementById('quiz-box').style.display = 'block';
+    document.getElementById('live-scoreboard').style.display = 'flex';
+    document.getElementById('live-correct').innerText = '0';
+    document.getElementById('live-wrong').innerText = '0';
+    
+    renderQuestion();
 }
 
-function checkAnswers() {
-    let score = 0;
-    questions.forEach((q, i) => {
-        const selected = document.querySelector(`input[name="q${i}"]:checked`);
-        const exp = document.getElementById(`exp-${i}`);
-        exp.style.display = 'block';
-        
-        if(selected) {
-            const val = parseInt(selected.value);
-            if(val === q.ans) {
-                score++;
-                document.getElementById(`label-${i}-${val}`).classList.add('correct');
-            } else {
-                document.getElementById(`label-${i}-${val}`).classList.add('wrong');
-                document.getElementById(`label-${i}-${q.ans}`).classList.add('correct');
-            }
-        } else {
-            document.getElementById(`label-${i}-${q.ans}`).classList.add('correct');
-        }
-    });
+function renderQuestion() {
+    const box = document.getElementById('quiz-box');
+    if (currentIdx >= currentQuestions.length) {
+        showResult();
+        return;
+    }
 
-    document.getElementById('modal-score').innerText = score + ' / ' + questions.length;
-    document.getElementById('modal-msg').innerText = score >= 15 ? "훌륭합니다! 모바일 학습 완료!" : "조금 더 복습해볼까요?";
-    document.getElementById('result-modal').style.display = 'flex';
+    const item = currentQuestions[currentIdx];
+    box.innerHTML = `
+        <div class="card">
+            <div class="card-header">
+                <span class="question-num">Question ${currentIdx + 1} / ${currentQuestions.length}</span>
+                <button class="btn-exit" onclick="confirmExit()">메인으로 나가기</button>
+            </div>
+            <div class="question-text">${item.q}</div>
+            <div class="options">
+                ${item.o.map((opt, i) => `
+                    <button class="option" onclick="checkAnswer(${i})">${opt}</button>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+function checkAnswer(idx) {
+    const item = currentQuestions[currentIdx];
+    const opts = document.querySelectorAll('.option');
+    opts.forEach(b => b.disabled = true);
+
+    if (idx === item.a) {
+        opts[idx].classList.add('correct');
+        score++;
+        document.getElementById('live-correct').innerText = score;
+    } else {
+        opts[idx].classList.add('wrong');
+        opts[item.a].classList.add('correct');
+        wrongScore++;
+        document.getElementById('live-wrong').innerText = wrongScore;
+    }
+
+    setTimeout(() => {
+        currentIdx++;
+        renderQuestion();
+    }, 700);
+}
+
+function showResult() {
+    document.getElementById('quiz-box').style.display = 'none';
+    document.getElementById('live-scoreboard').style.display = 'none';
+    document.getElementById('result-screen').style.display = 'block';
+    
+    const percent = Math.round((score / currentQuestions.length) * 100);
+    document.getElementById('res-correct').innerText = score;
+    document.getElementById('res-wrong').innerText = wrongScore;
+    document.getElementById('final-score-percent').innerText = percent + '점';
+    
+    let msg = score === 20 ? "대단합니다! 완벽해요! 🏅" : score >= 15 ? "훌륭해요! 실력이 좋네요! 👍" : "조금 더 복습해 봅시다! 💪";
+    document.getElementById('result-msg').innerText = msg;
+}
+
+function retryQuiz() {
+    document.getElementById('result-screen').style.display = 'none';
+    startQuiz(activeQuiz);
+}
+
+// 수정: 커스텀 확인창 열기
+function confirmExit() {
+    document.getElementById('custom-confirm').style.display = 'flex';
+}
+
+// 수정: 확인창 닫기
+function closeConfirm() {
+    document.getElementById('custom-confirm').style.display = 'none';
+}
+
+function goHome() {
+    closeConfirm(); // 모달 닫기
+    document.getElementById('result-screen').style.display = 'none';
+    document.getElementById('quiz-box').style.display = 'none';
+    document.getElementById('live-scoreboard').style.display = 'none';
+    document.getElementById('main-menu').style.display = 'flex';
 }
 </script>
 </body>
 </html>
-"""
-
-file_path = "/mnt/data/index.html"
-with open(file_path, "w", encoding="utf-8") as f:
-    f.write(mobile_html_content)
